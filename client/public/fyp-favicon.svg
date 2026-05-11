@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#185FA5"/>
+      <stop offset="100%" stop-color="#534AB7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer hex glow layer -->
+  <polygon points="32,4 56,18 56,46 32,60 8,46 8,18" fill="url(#hexGrad)" opacity="0.15"/>
+
+  <!-- Mid hex -->
+  <polygon points="32,9 52,21 52,44 32,56 12,44 12,21" fill="url(#hexGrad)" opacity="0.35"/>
+
+  <!-- Inner solid hex -->
+  <polygon points="32,15 49,25 49,43 32,53 15,43 15,25" fill="url(#hexGrad)"/>
+
+  <!-- F lettermark -->
+  <text
+    x="32"
+    y="45"
+    font-family="'Sora', 'Segoe UI', sans-serif"
+    font-size="28"
+    font-weight="700"
+    fill="white"
+    text-anchor="middle"
+    dominant-baseline="auto"
+  >F</text>
+</svg>
