@@ -11,21 +11,17 @@ const router = express.Router();
 
 const uploadsRoot = path.join(__dirname, "..", "uploads");
 
+const maxUploadBytes =
+  Number(process.env.MAX_UPLOAD_BYTES) ||
+  (process.env.VERCEL ? 4 * 1024 * 1024 : 10 * 1024 * 1024);
+
 const ALLOWED_EXT = [".pdf", ".doc", ".docx", ".zip"];
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, uploadsRoot);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || "") || "";
-    cb(null, `${Date.now()}${ext}`);
-  },
-});
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: maxUploadBytes },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || "").toLowerCase();
     if (!ALLOWED_EXT.includes(ext)) {
@@ -71,7 +67,7 @@ function handleUploadError(err, req, res) {
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(400).json({
-        message: "File size must not exceed 10MB.",
+        message: `File size must not exceed ${Math.round(maxUploadBytes / (1024 * 1024))}MB.`,
       });
     }
     return res.status(400).json({ message: err.message || "Upload failed." });
@@ -90,15 +86,12 @@ router.post(
   },
   async (req, res) => {
     try {
-      if (!req.file) {
+      if (!req.file || !req.file.buffer) {
         return res.status(400).json({ message: "File is required." });
       }
 
       const { projectId, title, description } = req.body;
       if (!projectId || !title) {
-        if (req.file.path && fs.existsSync(req.file.path)) {
-          fs.unlinkSync(req.file.path);
-        }
         return res.status(400).json({
           message: "projectId and title are required.",
         });
@@ -106,9 +99,6 @@ router.post(
 
       const project = await loadProject(projectId);
       if (!project || !idEquals(project.student, req.user.id)) {
-        if (req.file.path && fs.existsSync(req.file.path)) {
-          fs.unlinkSync(req.file.path);
-        }
         return res.status(403).json({
           message: "Project not found or you do not own this project.",
         });
@@ -123,18 +113,18 @@ router.post(
         .select("version")
         .lean();
 
-      const nextVersion = latest && typeof latest.version === "number" ? latest.version + 1 : 1;
-
-      const storedRelative = path.join("uploads", req.file.filename).replace(/\\/g, "/");
+      const nextVersion =
+        latest && typeof latest.version === "number" ? latest.version + 1 : 1;
 
       const submission = await Submission.create({
         project: project._id,
         student: req.user.id,
         title: titleTrim,
         description: description != null ? String(description).trim() : "",
-        fileUrl: storedRelative,
-        fileName: req.file.originalname || req.file.filename,
-        fileSize: typeof req.file.size === "number" ? req.file.size : 0,
+        fileUrl: "db",
+        fileBinary: req.file.buffer,
+        fileName: req.file.originalname || "document",
+        fileSize: typeof req.file.size === "number" ? req.file.size : req.file.buffer.length,
         version: nextVersion,
       });
 
@@ -146,13 +136,6 @@ router.post(
       res.status(201).json({ submission: populated });
     } catch (err) {
       console.error(err);
-      if (req.file && req.file.path && fs.existsSync(req.file.path)) {
-        try {
-          fs.unlinkSync(req.file.path);
-        } catch {
-          /* ignore */
-        }
-      }
       res.status(500).json({ message: "Failed to save submission." });
     }
   }
@@ -234,7 +217,7 @@ router.get("/download/:id", async (req, res) => {
       return res.status(400).json({ message: "Invalid submission id." });
     }
 
-    const submission = await Submission.findById(id);
+    const submission = await Submission.findById(id).select("+fileBinary");
     if (!submission) {
       return res.status(404).json({ message: "Submission not found." });
     }
@@ -244,12 +227,22 @@ router.get("/download/:id", async (req, res) => {
       return res.status(403).json({ message: "Access denied." });
     }
 
+    if (submission.fileBinary && submission.fileBinary.length) {
+      res.setHeader("Content-Type", "application/octet-stream");
+      const safeName = String(submission.fileName || "document").replace(/"/g, "");
+      res.setHeader("Content-Disposition", `attachment; filename="${safeName}"`);
+      return res.send(submission.fileBinary);
+    }
+
     const diskName = path.basename(submission.fileUrl);
     const absolutePath = path.join(uploadsRoot, diskName);
 
     const uploadsResolved = path.resolve(uploadsRoot);
     const resolvedFile = path.resolve(absolutePath);
-    if (!resolvedFile.startsWith(uploadsResolved + path.sep) && resolvedFile !== uploadsResolved) {
+    if (
+      !resolvedFile.startsWith(uploadsResolved + path.sep) &&
+      resolvedFile !== uploadsResolved
+    ) {
       return res.status(400).json({ message: "Invalid file path." });
     }
 

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "build": {
+    "env": {
+      "VITE_MAX_UPLOAD_MB": "4"
+    }
+  }
+}

@@ -1,8 +1,25 @@
 import axios from "axios";
 import { triggerSessionExpired } from "./sessionBridge.js";
 
+/** Production: set to server origin + `/api`, e.g. `https://your-api.vercel.app/api` */
+function productionApiBase() {
+  const raw = (import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/+$/, "");
+  if (!raw) return "";
+  return raw.endsWith("/api") ? raw : `${raw}/api`;
+}
+
+const apiBase = import.meta.env.DEV
+  ? "http://localhost:5000/api"
+  : productionApiBase();
+
+if (import.meta.env.PROD && !apiBase) {
+  console.warn(
+    "[fyp-client] VITE_API_BASE_URL is not set. Set it in the Vercel project to your deployed API (e.g. https://your-api.vercel.app)."
+  );
+}
+
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: apiBase,
   headers: {
     "Content-Type": "application/json",
   },

@@ -26,6 +26,10 @@ const submissionSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    fileBinary: {
+      type: Buffer,
+      select: false,
+    },
     fileName: {
       type: String,
       required: true,

@@ -32,6 +32,8 @@ function formatDate(value) {
   });
 }
 
+const maxUploadMb = Number(import.meta.env.VITE_MAX_UPLOAD_MB) || 10;
+
 async function downloadSubmission(id, fileName) {
   const res = await api.get(`/submissions/download/${id}`, {
     responseType: "blob",
@@ -289,7 +291,9 @@ export default function UploadDocument() {
                     Drag and drop a file here, or{" "}
                     <span className="text-blue-600 underline">browse</span>
                   </p>
-                  <p className="mt-1 text-xs text-slate-500">PDF, DOC, DOCX, or ZIP — max 10MB</p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    PDF, DOC, DOCX, or ZIP — max {maxUploadMb}MB
+                  </p>
                   <input
                     id="doc-file-input"
                     type="file"
