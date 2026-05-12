@@ -18,18 +18,6 @@ if (!process.env.VERCEL && !fs.existsSync(uploadsDir)) {
 
 const app = express();
 
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (err) {
-    console.error(err);
-    if (!res.headersSent) {
-      res.status(503).json({ message: "Database unavailable." });
-    }
-  }
-});
-
 const clientOrigins = process.env.CLIENT_ORIGIN
   ? process.env.CLIENT_ORIGIN.split(",")
       .map((s) => s.trim())
@@ -54,7 +42,23 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.get("/api/health", (req, res) => {
-  res.json({ ok: true, service: "fyp-management-system-api" });
+  res.json({
+    ok: true,
+    service: "fyp-management-system-api",
+    mongoConfigured: Boolean(process.env.MONGO_URI),
+  });
+});
+
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error(err);
+    if (!res.headersSent) {
+      res.status(503).json({ message: "Database unavailable." });
+    }
+  }
 });
 
 app.use("/api/auth", authRouter);
